@@ -1,0 +1,236 @@
+<div class="dashboard-container animate-fade-in">
+  <header class="header-section">
+    <div class="user-info">
+      <h1>Hello, <span class="text-gradient">{{ (authService.currentUser$ | async)?.email?.split('@')?.[0] || 'User' }}</span></h1>
+      <p>Manage your daily expenses and track your budget</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <button mat-stroked-button color="warn" (click)="logout()" style="border-radius: 12px;">
+        <mat-icon>logout</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card today premium-card">
+      <div class="stat-icon">📅</div>
+      <div class="stat-content">
+        <h3>Today's Spending</h3>
+        <div class="amount">₹{{ expenseService.todayTotal() | number:'1.2-2' }}</div>
+        <div style="font-size: 0.85rem; margin-top: 6px; font-weight: 500; color: rgba(255, 255, 255, 0.9);">
+          {{ expenseService.todayCount() }} Transactions
+        </div>
+      </div>
+    </div>
+    <div class="stat-card monthly premium-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <h3>This Month</h3>
+        <div class="amount">₹{{ expenseService.monthlyTotal() | number:'1.2-2' }}</div>
+      </div>
+    </div>
+    <div class="stat-card budget premium-card" (click)="editBudget()" style="cursor: pointer;" matTooltip="Click to set monthly budget">
+      <div class="stat-icon" style="background: rgba(255, 255, 255, 0.25);">💰</div>
+      <div class="stat-content">
+        <h3>Remaining Balance</h3>
+        <div class="amount" [style.color]="remainingBudget() < 0 ? '#ffb3b3' : 'inherit'">₹{{ remainingBudget() | number:'1.2-2' }}</div>
+        <div style="font-size: 0.85rem; margin-top: 6px; font-weight: 500; color: rgba(255, 255, 255, 0.9);">
+          Budget: ₹{{ monthlyBudget() | number:'1.0-0' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- Action Tabs: Transactions & Form -->
+    <mat-card class="premium-card action-card animate-fade-in" style="margin-bottom: 20px; padding: 0; overflow: hidden;">
+      <mat-tab-group animationDuration="300ms" color="accent" [selectedIndex]="activeTabIndex()" (selectedIndexChange)="activeTabIndex.set($event)">
+        
+        <!-- Tab 1: Transactions List -->
+        <mat-tab label="📋 Transactions">
+          <div style="padding: 1.5rem;">
+            <div class="list-header-group">
+              <div class="title-section">
+                <h2 style="margin: 0; font-size: 18px; color: var(--text-main);">Daily Transactions</h2>
+              </div>
+              <div class="action-toolbar">
+                <button mat-stroked-button [matMenuTriggerFor]="yearMenu" class="glass-action-btn">
+                  {{ selectedYear() }} <mat-icon>expand_more</mat-icon>
+                </button>
+                <mat-menu #yearMenu="matMenu" class="premium-menu">
+                  <button mat-menu-item *ngFor="let y of availableYears()" (click)="onYearChange(y)">{{y}}</button>
+                </mat-menu>
+                <div class="v-divider"></div>
+                <button mat-icon-button [matMenuTriggerFor]="downloadMenu" class="glass-action-btn icon-only">
+                  <mat-icon>download</mat-icon>
+                </button>
+                <mat-menu #downloadMenu="matMenu" class="premium-menu">
+                  <button mat-menu-item (click)="exportToPDF('daily')"><mat-icon>today</mat-icon> Daily</button>
+                  <button mat-menu-item (click)="exportToPDF('weekly')"><mat-icon>date_range</mat-icon> Weekly</button>
+                  <button mat-menu-item (click)="exportToPDF('monthly')"><mat-icon>calendar_month</mat-icon> Monthly</button>
+                  <button mat-menu-item (click)="exportToPDF('yearly')"><mat-icon>history</mat-icon> Yearly</button>
+                </mat-menu>
+              </div>
+            </div>
+
+            <!-- Month Navigation -->
+            <div class="month-nav animate-fade-in">
+              <div class="nav-controls">
+                <button mat-icon-button (click)="changeMonth(-1)" class="nav-btn"><mat-icon>chevron_left</mat-icon></button>
+                <div class="current-month">{{ monthLabel }}</div>
+                <button mat-icon-button (click)="changeMonth(1)" class="nav-btn"><mat-icon>chevron_right</mat-icon></button>
+              </div>
+            </div>
+
+            <!-- Date Timeline -->
+            <div class="date-timeline-wrapper">
+              <div class="date-timeline">
+                <div *ngFor="let day of monthDays()" class="date-item" [class.active]="isSameDate(day.date, selectedDate())" (click)="selectDate(day.date)">
+                  <span class="day-name">{{ day.dayName }}</span>
+                  <span class="day-num">{{ day.dayNum }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-container" *ngIf="filteredExpenses().length > 0; else emptyState">
+              <table mat-table [dataSource]="filteredExpenses()" class="premium-table">
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef> Description </th>
+                  <td mat-cell *matCellDef="let exp" class="expense-name"> {{exp.name}} </td>
+                  <td mat-footer-cell *matFooterCellDef class="footer-total-label"> Total for the day: </td>
+                </ng-container>
+                <ng-container matColumnDef="amount">
+                  <th mat-header-cell *matHeaderCellDef> Amount </th>
+                  <td mat-cell *matCellDef="let exp" class="expense-amount"> ₹{{exp.amount}} </td>
+                  <td mat-footer-cell *matFooterCellDef class="footer-total-amount"> ₹{{ dailyTotalAmount() | number:'1.2-2' }} </td>
+                </ng-container>
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef> Date </th>
+                  <td mat-cell *matCellDef="let exp"> {{exp.date}} </td>
+                  <td mat-footer-cell *matFooterCellDef></td>
+                </ng-container>
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef> </th>
+                  <td mat-cell *matCellDef="let exp" class="actions-cell">
+                    <button mat-icon-button color="primary" class="btn-icon-sm" (click)="editExpense(exp)" matTooltip="Edit"><mat-icon>edit</mat-icon></button>
+                    <button mat-icon-button color="warn" class="btn-icon-sm" (click)="deleteExpense(exp.id)" matTooltip="Delete"><mat-icon>delete_outline</mat-icon></button>
+                  </td>
+                  <td mat-footer-cell *matFooterCellDef></td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                <tr mat-footer-row *matFooterRowDef="displayedColumns"></tr>
+              </table>
+            </div>
+            <ng-template #emptyState>
+              <div class="empty-state">
+                <mat-icon class="empty-icon">account_balance_wallet</mat-icon>
+                <h3>No expenses found for this period</h3>
+                <p>Change the filter or add some expenses to see them here.</p>
+              </div>
+            </ng-template>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 2: Add/Edit Expense Form -->
+        <mat-tab label="➕ {{ editingId() ? 'Edit' : 'Add' }} Expense">
+          <div style="padding: 1.5rem;">
+            <div class="form-title" style="font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+              <mat-icon class="text-gradient">{{ editingId() ? 'edit' : 'add_circle' }}</mat-icon>
+              {{ editingId() ? 'Edit Expense details' : 'Enter New Expense' }}
+            </div>
+            <form [formGroup]="expenseForm" (ngSubmit)="handleSubmit()" class="expense-form-container">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Expense Name</mat-label>
+                <input matInput formControlName="name" placeholder="e.g. Groceries, Rapido" />
+                <mat-icon matPrefix style="margin-right: 8px;">label_important</mat-icon>
+                <mat-error *ngIf="expenseForm.get('name')?.hasError('required')">Name is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Amount (₹)</mat-label>
+                <input matInput type="number" formControlName="amount" placeholder="0.00" />
+                <mat-icon matPrefix style="margin-right: 8px;">payments</mat-icon>
+                <mat-error *ngIf="expenseForm.get('amount')?.hasError('required')">Amount is required</mat-error>
+                <mat-error *ngIf="expenseForm.get('amount')?.hasError('min')">Amount must be greater than 0</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Date</mat-label>
+                <input matInput [matDatepicker]="picker" formControlName="date" readonly (click)="picker.open()" (focus)="picker.open()">
+                <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                <mat-datepicker #picker></mat-datepicker>
+                <mat-icon matPrefix style="margin-right: 8px;">calendar_today</mat-icon>
+                <mat-error *ngIf="expenseForm.get('date')?.hasError('required')">Date is required</mat-error>
+              </mat-form-field>
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button mat-raised-button class="gradient-btn" style="flex: 1; position: relative;" type="submit">
+                  <span *ngIf="!expenseService.isLoading()">{{ editingId() ? 'Update' : 'Save Expense' }}</span>
+                  <div *ngIf="expenseService.isLoading()" style="display: flex; justify-content: center;">
+                    <mat-spinner diameter="24" style="pointer-events: none;"></mat-spinner>
+                  </div>
+                </button>
+                <button mat-stroked-button *ngIf="editingId()" type="button" (click)="cancelEdit()" style="flex: 0.5; border-radius: 12px;">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </mat-tab>
+
+      </mat-tab-group>
+    </mat-card>
+
+    <!-- Analytics & Summary Tabs -->
+    <mat-card class="premium-card analytics-card animate-fade-in" style="margin-bottom: 20px; padding: 0; overflow: hidden;">
+      <mat-tab-group animationDuration="300ms" color="primary">
+        
+        <!-- Tab 1: Daily Chart -->
+        <mat-tab label="📊 Daily Analytics">
+          <div style="padding: 1.5rem;">
+            <div class="chart-container">
+              <div class="chart-scroll-wrapper">
+                <canvas baseChart [data]="chartData()" [options]="chartOptions" [type]="'bar'"></canvas>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 2: Monthly Summary -->
+        <mat-tab label="📅 {{ selectedYear() }} Summary">
+          <div style="padding: 1.5rem;">
+            <div class="summary-grid">
+              <div *ngFor="let item of monthlySummaries()" class="summary-item" [class.has-data]="item.total > 0" (click)="selectMonth(item.monthIdx)">
+                <div class="s-month">{{ item.month }}</div>
+                <div class="s-total">₹{{ item.total | number:'1.0-0' }}</div>
+                <div class="s-indicator" *ngIf="item.total > 0"></div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+        
+      </mat-tab-group>
+    </mat-card>
+  </div>
+  
+  <app-ai-chat></app-ai-chat>
+
+  <!-- Budget Overlay Popup -->
+  <div class="budget-overlay" *ngIf="showBudgetPopup()">
+    <mat-card class="budget-modal elevate-shadow animate-fade-in">
+      <div class="modal-header">
+        <mat-icon style="color: #3cba92; margin-right: 8px;">account_balance_wallet</mat-icon>
+        <span style="font-weight: 600; font-size: 1.1rem; color: #333;">Set Monthly Budget</span>
+      </div>
+      <div class="modal-body">
+        <p style="color: #666; font-size: 0.95rem; margin-bottom: 20px;">Enter your target spending limit for this month.</p>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Budget Amount (₹)</mat-label>
+          <input matInput type="number" [ngModel]="budgetInputValue()" (ngModelChange)="budgetInputValue.set(+$event)" (keyup.enter)="saveBudget()" min="0">
+        </mat-form-field>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; padding: 16px;">
+        <button mat-button (click)="closeBudgetPopup()" style="border-radius: 8px;">Cancel</button>
+        <button mat-raised-button color="primary" (click)="saveBudget()" style="border-radius: 8px; background: linear-gradient(135deg, #0ba360, #3cba92); color: white;">Save Limit</button>
+      </div>
+    </mat-card>
+  </div>
+
+</div>

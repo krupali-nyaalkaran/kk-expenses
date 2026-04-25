@@ -1,0 +1,38 @@
+<!-- Floating Action Button -->
+<button *ngIf="!isChatOpen()" mat-fab class="chat-fab elevate-shadow" (click)="toggleChat()">
+  <mat-icon>smart_toy</mat-icon>
+</button>
+
+<!-- Chat Modal -->
+<mat-card *ngIf="isChatOpen()" class="chat-modal elevate-shadow animate-fade-in">
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="header-content">
+      <mat-icon style="color:white; margin-right: 8px;">smart_toy</mat-icon>
+      <span style="color:white; font-weight: 600; letter-spacing: 0.5px;">Expense AI Assistant</span>
+    </div>
+    <button mat-icon-button (click)="toggleChat()" style="color:white;">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Messages Body -->
+  <div class="chat-body" #scrollMe>
+    <div *ngFor="let msg of messages()" class="message-wrapper" [ngClass]="msg.sender">
+      <div class="message-bubble">{{ msg.text }}</div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="chat-footer">
+    <input 
+      type="text" 
+      [ngModel]="userInput()" 
+      (ngModelChange)="userInput.set($event)"
+      (keyup.enter)="sendMessage()" 
+      placeholder="Type your expenses or budget..." />
+    <button mat-icon-button color="primary" (click)="sendMessage()" [disabled]="!userInput().trim()">
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</mat-card>

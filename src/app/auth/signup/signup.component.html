@@ -1,0 +1,53 @@
+<div class="auth-wrapper animate-fade-in">
+  <mat-card class="premium-card auth-card">
+    <div class="auth-header">
+      <div class="brand-logo">🚀</div>
+      <h1 class="auth-title">Create Account</h1>
+      <p class="auth-subtitle">Join us to start managing your budget</p>
+    </div>
+
+    <form [formGroup]="signupForm" (ngSubmit)="signup()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email Address</mat-label>
+        <input matInput formControlName="email" type="email" placeholder="john@example.com" />
+        <mat-icon matPrefix style="margin-right: 8px; font-size: 20px;">mail_outline</mat-icon>
+        <mat-error *ngIf="signupForm.get('email')?.hasError('email')">Please enter a valid email</mat-error>
+        <mat-error *ngIf="signupForm.get('email')?.hasError('required')">Email is required</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Password</mat-label>
+        <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" />
+        <mat-icon matPrefix style="margin-right: 8px; font-size: 20px;">lock_open</mat-icon>
+        <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" type="button">
+          <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+        </button>
+        <mat-error *ngIf="signupForm.get('password')?.hasError('required')">Password is required</mat-error>
+        <mat-error *ngIf="signupForm.get('password')?.hasError('minlength')">Password must be at least 6 characters</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Confirm Password</mat-label>
+        <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword" />
+        <mat-icon matPrefix style="margin-right: 8px; font-size: 20px;">verified</mat-icon>
+        <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button">
+          <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+        </button>
+        <mat-error *ngIf="signupForm.hasError('passwordMismatch')">Passwords do not match</mat-error>
+      </mat-form-field>
+
+      <button mat-raised-button 
+              class="full-width auth-btn gradient-btn" 
+              type="submit" 
+              [disabled]="signupForm.invalid || isLoading()">
+        <span *ngIf="!isLoading()">Sign Up</span>
+        <mat-spinner *ngIf="isLoading()" diameter="24" style="margin: 0 auto;"></mat-spinner>
+      </button>
+
+      <div class="auth-footer">
+        Already have an account? 
+        <a routerLink="/login" class="link-btn">Login here</a>
+      </div>
+    </form>
+  </mat-card>
+</div>

@@ -1,0 +1,73 @@
+/* Login Page Premium Styles */
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-color);
+  padding: 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 450px;
+  padding: 40px;
+  text-align: center;
+  border-radius: 28px !important;
+}
+
+.auth-header {
+  margin-bottom: 35px;
+}
+
+.brand-logo {
+  font-size: 32px;
+  margin-bottom: 15px;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.auth-subtitle {
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-size: 15px;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.auth-btn {
+  height: 54px !important;
+  font-size: 16px !important;
+  margin-top: 15px;
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4) !important;
+}
+
+.auth-footer {
+  margin-top: 30px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.link-btn {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.link-btn:hover {
+  opacity: 0.8;
+}
+
+/* Spinner adjustment */
+::ng-deep .mat-mdc-progress-spinner {
+  --mdc-circular-progress-active-indicator-color: white;
+}
