@@ -13,31 +13,35 @@
 
   <!-- Stats Grid -->
   <div class="stats-grid">
-    <div class="stat-card today premium-card">
-      <div class="stat-icon">📅</div>
+    <div class="stat-card monthly premium-card" style="border-left: 4px solid #4CAF50;">
+      <div class="stat-icon">💰</div>
       <div class="stat-content">
-        <h3>Today's Spending</h3>
-        <div class="amount">₹{{ expenseService.todayTotal() | number:'1.2-2' }}</div>
-        <div style="font-size: 0.85rem; margin-top: 6px; font-weight: 500; color: rgba(255, 255, 255, 0.9);">
-          {{ expenseService.todayCount() }} Transactions
-        </div>
+        <h3>This Month Income</h3>
+        <div class="amount" style="color: #4CAF50;">₹{{ expenseService.monthlyIncomeTotal() | number:'1.2-2' }}</div>
       </div>
     </div>
-    <div class="stat-card monthly premium-card">
+    <div class="stat-card monthly premium-card" style="border-left: 4px solid #f44336;">
       <div class="stat-icon">📊</div>
       <div class="stat-content">
-        <h3>This Month</h3>
-        <div class="amount">₹{{ expenseService.monthlyTotal() | number:'1.2-2' }}</div>
+        <h3>This Month Expenses</h3>
+        <div class="amount" style="color: #f44336;">₹{{ expenseService.monthlyTotal() | number:'1.2-2' }}</div>
       </div>
     </div>
-    <div class="stat-card budget premium-card" (click)="editBudget()" style="cursor: pointer;" matTooltip="Click to set monthly budget">
-      <div class="stat-icon" style="background: rgba(255, 255, 255, 0.25);">💰</div>
+    <div class="stat-card monthly premium-card" style="border-left: 4px solid #2196F3;">
+      <div class="stat-icon">🏦</div>
+      <div class="stat-content">
+        <h3>This Month Savings</h3>
+        <div class="amount" style="color: #2196F3;">₹{{ expenseService.monthlySavingTotal() | number:'1.2-2' }}</div>
+        <div style="font-size: 0.85rem; margin-top: 6px; font-weight: 500; color: rgba(255, 255, 255, 0.9);">
+          Yearly: ₹{{ expenseService.yearlySavingTotal() | number:'1.2-2' }}
+        </div>
+      </div>
+    </div>
+    <div class="stat-card budget premium-card" style="border-left: 4px solid #FF9800;">
+      <div class="stat-icon" style="background: rgba(255, 255, 255, 0.25);">💳</div>
       <div class="stat-content">
         <h3>Remaining Balance</h3>
-        <div class="amount" [style.color]="remainingBudget() < 0 ? '#ffb3b3' : 'inherit'">₹{{ remainingBudget() | number:'1.2-2' }}</div>
-        <div style="font-size: 0.85rem; margin-top: 6px; font-weight: 500; color: rgba(255, 255, 255, 0.9);">
-          Budget: ₹{{ monthlyBudget() | number:'1.0-0' }}
-        </div>
+        <div class="amount" [style.color]="remainingBalance() < 0 ? '#ffb3b3' : 'inherit'">₹{{ remainingBalance() | number:'1.2-2' }}</div>
       </div>
     </div>
   </div>
@@ -171,6 +175,101 @@
                 </button>
                 <button mat-stroked-button *ngIf="editingId()" type="button" (click)="cancelEdit()" style="flex: 0.5; border-radius: 12px;">Cancel</button>
               </div>
+            </form>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Savings List -->
+        <mat-tab label="🏦 Savings">
+          <div style="padding: 1.5rem;">
+            <h2 style="margin: 0 0 15px 0; font-size: 18px; color: var(--text-main);">Monthly Savings</h2>
+            <div class="table-container" *ngIf="monthlySavingsList().length > 0; else emptySavings">
+              <table mat-table [dataSource]="monthlySavingsList()" class="premium-table">
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef> Purpose / Location </th>
+                  <td mat-cell *matCellDef="let sav" class="expense-name"> {{sav.purpose}} </td>
+                </ng-container>
+                <ng-container matColumnDef="amount">
+                  <th mat-header-cell *matHeaderCellDef> Amount </th>
+                  <td mat-cell *matCellDef="let sav" class="expense-amount"> ₹{{sav.amount}} </td>
+                </ng-container>
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef> Date </th>
+                  <td mat-cell *matCellDef="let sav"> {{sav.date}} </td>
+                </ng-container>
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef> </th>
+                  <td mat-cell *matCellDef="let sav" class="actions-cell">
+                    <button mat-icon-button color="warn" class="btn-icon-sm" (click)="deleteSaving(sav.id)" matTooltip="Delete"><mat-icon>delete_outline</mat-icon></button>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="['name', 'amount', 'date', 'actions']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['name', 'amount', 'date', 'actions'];"></tr>
+              </table>
+            </div>
+            <ng-template #emptySavings>
+              <div class="empty-state">
+                <mat-icon class="empty-icon">savings</mat-icon>
+                <h3>No savings found for this month</h3>
+              </div>
+            </ng-template>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Add Income -->
+        <mat-tab label="💰 Add Income">
+          <div style="padding: 1.5rem;">
+            <div class="form-title" style="font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+              <mat-icon class="text-gradient">add_circle</mat-icon>
+              Enter New Income (Salary, etc.)
+            </div>
+            <form [formGroup]="incomeForm" (ngSubmit)="handleIncomeSubmit()" class="expense-form-container">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Income Source</mat-label>
+                <input matInput formControlName="source" placeholder="e.g. Salary, Freelance" />
+                <mat-icon matPrefix style="margin-right: 8px;">label_important</mat-icon>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Amount (₹)</mat-label>
+                <input matInput type="number" formControlName="amount" placeholder="0.00" />
+                <mat-icon matPrefix style="margin-right: 8px;">payments</mat-icon>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Date</mat-label>
+                <input matInput [matDatepicker]="pickerInc" formControlName="date" readonly (click)="pickerInc.open()">
+                <mat-datepicker-toggle matSuffix [for]="pickerInc"></mat-datepicker-toggle>
+                <mat-datepicker #pickerInc></mat-datepicker>
+              </mat-form-field>
+              <button mat-raised-button class="gradient-btn" style="width: 100%; margin-top: 10px;" type="submit">Save Income</button>
+            </form>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Add Saving -->
+        <mat-tab label="🏦 Add Saving">
+          <div style="padding: 1.5rem;">
+            <div class="form-title" style="font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+              <mat-icon class="text-gradient">savings</mat-icon>
+              Enter New Saving
+            </div>
+            <form [formGroup]="savingForm" (ngSubmit)="handleSavingSubmit()" class="expense-form-container">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Saving Purpose / Location</mat-label>
+                <input matInput formControlName="purpose" placeholder="e.g. Fixed Deposit, Mutual Funds" />
+                <mat-icon matPrefix style="margin-right: 8px;">account_balance</mat-icon>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Amount (₹)</mat-label>
+                <input matInput type="number" formControlName="amount" placeholder="0.00" />
+                <mat-icon matPrefix style="margin-right: 8px;">payments</mat-icon>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Date</mat-label>
+                <input matInput [matDatepicker]="pickerSav" formControlName="date" readonly (click)="pickerSav.open()">
+                <mat-datepicker-toggle matSuffix [for]="pickerSav"></mat-datepicker-toggle>
+                <mat-datepicker #pickerSav></mat-datepicker>
+              </mat-form-field>
+              <button mat-raised-button class="gradient-btn" style="width: 100%; margin-top: 10px;" type="submit">Save Amount</button>
             </form>
           </div>
         </mat-tab>

@@ -89,6 +89,8 @@ export class DashboardComponent implements OnInit {
   private snackBar = inject(MatSnackBar);
 
   expenseForm: FormGroup;
+  incomeForm: FormGroup;
+  savingForm: FormGroup;
   selectedDate = signal<Date>(new Date());
   viewDate = signal<Date>(new Date());
   selectedYear = signal<number>(new Date().getFullYear());
@@ -99,7 +101,9 @@ export class DashboardComponent implements OnInit {
   activeTabIndex = signal<number>(0);
   
   monthlyBudget = this.expenseService.budget;
-  remainingBudget = computed(() => this.monthlyBudget() - this.expenseService.monthlyTotal());
+  remainingBalance = computed(() => {
+    return this.expenseService.monthlyIncomeTotal() - this.expenseService.monthlyTotal() - this.expenseService.monthlySavingTotal();
+  });
   
   showBudgetPopup = signal<boolean>(false);
   budgetInputValue = signal<number>(0);
@@ -115,7 +119,17 @@ export class DashboardComponent implements OnInit {
   constructor() {
     this.expenseForm = this.fb.group({
       name: ['', Validators.required],
-      amount: ['', [Validators.required]],
+      amount: ['', [Validators.required, Validators.min(1)]],
+      date: [new Date(), Validators.required]
+    });
+    this.incomeForm = this.fb.group({
+      source: ['', Validators.required],
+      amount: ['', [Validators.required, Validators.min(1)]],
+      date: [new Date(), Validators.required]
+    });
+    this.savingForm = this.fb.group({
+      purpose: ['', Validators.required],
+      amount: ['', [Validators.required, Validators.min(1)]],
       date: [new Date(), Validators.required]
     });
   }
@@ -188,6 +202,26 @@ export class DashboardComponent implements OnInit {
     
     return this.expenseService.expenses().filter((exp: Expense) => exp.date === targetDateStr)
       .sort((a: Expense, b: Expense) => b.createdAt - a.createdAt);
+  });
+
+  monthlySavingsList = computed(() => {
+    const currentMonth = this.viewDate().getMonth();
+    const currentYear = this.viewDate().getFullYear();
+    return this.expenseService.savings().filter(s => {
+      if (!s.date) return false;
+      const parts = s.date.split('-');
+      return (parseInt(parts[1]) - 1) === currentMonth && parseInt(parts[2]) === currentYear;
+    }).sort((a, b) => b.createdAt - a.createdAt);
+  });
+
+  monthlyIncomesList = computed(() => {
+    const currentMonth = this.viewDate().getMonth();
+    const currentYear = this.viewDate().getFullYear();
+    return this.expenseService.incomes().filter(i => {
+      if (!i.date) return false;
+      const parts = i.date.split('-');
+      return (parseInt(parts[1]) - 1) === currentMonth && parseInt(parts[2]) === currentYear;
+    }).sort((a, b) => b.createdAt - a.createdAt);
   });
 
   dailyTotalAmount = computed(() => {
@@ -377,6 +411,34 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  async handleIncomeSubmit(): Promise<void> {
+    if (this.incomeForm.valid) {
+      const { source, amount, date } = this.incomeForm.value;
+      const dateStr = this.formatDate(date);
+      try {
+        await this.expenseService.addIncome(source, amount, dateStr);
+        this.snackBar.open('Income added!', 'Close', { duration: 3000 });
+        this.incomeForm.reset({ date: new Date() });
+      } catch (error: any) {
+        this.snackBar.open(`Error: ${error.message}`, 'Close', { duration: 5000 });
+      }
+    }
+  }
+
+  async handleSavingSubmit(): Promise<void> {
+    if (this.savingForm.valid) {
+      const { purpose, amount, date } = this.savingForm.value;
+      const dateStr = this.formatDate(date);
+      try {
+        await this.expenseService.addSaving(purpose, amount, dateStr);
+        this.snackBar.open('Saving added!', 'Close', { duration: 3000 });
+        this.savingForm.reset({ date: new Date() });
+      } catch (error: any) {
+        this.snackBar.open(`Error: ${error.message}`, 'Close', { duration: 5000 });
+      }
+    }
+  }
+
   editExpense(expense: Expense): void {
     const parts = expense.date.split('-');
     const dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
@@ -400,6 +462,18 @@ export class DashboardComponent implements OnInit {
       } catch (error: any) {
         this.snackBar.open(`Error: ${error.message}`, 'Close', { duration: 5000 });
       }
+    }
+  }
+
+  async deleteIncome(id: string): Promise<void> {
+    if (confirm('Delete this income?')) {
+      await this.expenseService.deleteIncome(id);
+    }
+  }
+
+  async deleteSaving(id: string): Promise<void> {
+    if (confirm('Delete this saving?')) {
+      await this.expenseService.deleteSaving(id);
     }
   }
 

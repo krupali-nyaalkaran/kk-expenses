@@ -10,6 +10,22 @@ export interface Expense {
   createdAt: number;
 }
 
+export interface Income {
+  id: string;
+  source: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  createdAt: number;
+}
+
+export interface Saving {
+  id: string;
+  purpose: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  createdAt: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -20,6 +36,8 @@ export class ExpenseService {
   
   // Signal state
   public expenses = signal<Expense[]>([]);
+  public incomes = signal<Income[]>([]);
+  public savings = signal<Saving[]>([]);
   public budget = signal<number>(0);
   public isLoading = signal(false);
 
@@ -28,9 +46,13 @@ export class ExpenseService {
     this.authService.currentUser$.subscribe(user => {
       if (user) {
         this.loadExpenses(user.uid);
+        this.loadIncomes(user.uid);
+        this.loadSavings(user.uid);
         this.loadBudget(user.uid);
       } else {
         this.expenses.set([]);
+        this.incomes.set([]);
+        this.savings.set([]);
         this.budget.set(0);
       }
     });
@@ -85,6 +107,34 @@ export class ExpenseService {
       clearTimeout(loadTimeout);
       this.isLoading.set(false);
       console.error('Error loading expenses:', error);
+    });
+  }
+
+  private loadIncomes(userId: string): void {
+    const incomesRef = ref(this.db, `incomes/${userId}`);
+    onValue(incomesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list: Income[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        this.incomes.set(list);
+      } else {
+        this.incomes.set([]);
+      }
+    });
+  }
+
+  private loadSavings(userId: string): void {
+    const savingsRef = ref(this.db, `savings/${userId}`);
+    onValue(savingsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const list: Saving[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        this.savings.set(list);
+      } else {
+        this.savings.set([]);
+      }
     });
   }
 
@@ -155,6 +205,46 @@ export class ExpenseService {
     }
   }
 
+  // --- Incomes ---
+  async addIncome(source: string, amount: number, date: string): Promise<void> {
+    const userId = this.authService.getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    const newRef = push(ref(this.db, `incomes/${userId}`));
+    await set(newRef, { source, amount, date, createdAt: Date.now() });
+  }
+
+  async updateIncome(id: string, source: string, amount: number, date: string): Promise<void> {
+    const userId = this.authService.getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    await update(ref(this.db, `incomes/${userId}/${id}`), { source, amount, date });
+  }
+
+  async deleteIncome(id: string): Promise<void> {
+    const userId = this.authService.getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    await remove(ref(this.db, `incomes/${userId}/${id}`));
+  }
+
+  // --- Savings ---
+  async addSaving(purpose: string, amount: number, date: string): Promise<void> {
+    const userId = this.authService.getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    const newRef = push(ref(this.db, `savings/${userId}`));
+    await set(newRef, { purpose, amount, date, createdAt: Date.now() });
+  }
+
+  async updateSaving(id: string, purpose: string, amount: number, date: string): Promise<void> {
+    const userId = this.authService.getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    await update(ref(this.db, `savings/${userId}/${id}`), { purpose, amount, date });
+  }
+
+  async deleteSaving(id: string): Promise<void> {
+    const userId = this.authService.getUserId();
+    if (!userId) throw new Error('User not authenticated');
+    await remove(ref(this.db, `savings/${userId}/${id}`));
+  }
+
   // Computed signals for stats
   public todayTotal = computed(() => {
     const today = new Date();
@@ -193,5 +283,39 @@ export class ExpenseService {
         return dMonth === currentMonth && dYear === currentYear;
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
+  });
+
+  public monthlyIncomeTotal = computed(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    return this.incomes()
+      .filter(inc => {
+        if (!inc.date) return false;
+        const parts = inc.date.split('-');
+        return (parseInt(parts[1]) - 1) === currentMonth && parseInt(parts[2]) === currentYear;
+      }).reduce((sum, inc) => sum + inc.amount, 0);
+  });
+
+  public monthlySavingTotal = computed(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    return this.savings()
+      .filter(sav => {
+        if (!sav.date) return false;
+        const parts = sav.date.split('-');
+        return (parseInt(parts[1]) - 1) === currentMonth && parseInt(parts[2]) === currentYear;
+      }).reduce((sum, sav) => sum + sav.amount, 0);
+  });
+
+  public yearlySavingTotal = computed(() => {
+    const currentYear = new Date().getFullYear();
+    return this.savings()
+      .filter(sav => {
+        if (!sav.date) return false;
+        const parts = sav.date.split('-');
+        return parseInt(parts[2]) === currentYear;
+      }).reduce((sum, sav) => sum + sav.amount, 0);
   });
 }
